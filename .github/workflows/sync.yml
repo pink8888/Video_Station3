@@ -5,7 +5,6 @@ on:
     - cron: "0 */6 * * *" # run every 6 hours
   workflow_dispatch: # Allows manual triggering
 
-# 权限声明可以保留，但我们实际会使用权限更强的 PAT
 permissions:
   contents: write
   actions: write
@@ -17,14 +16,13 @@ jobs:
     if: ${{ github.event.repository.fork }}
 
     steps:
-      # Step 1: run a standard checkout action
+      # Step 1: Checkout the repository using a PAT for full permissions
       - name: Checkout target repo
         uses: actions/checkout@v4
         with:
-          # 使用 PAT 来 checkout，确保后续操作有权限
           token: ${{ secrets.PAT }} 
 
-      # Step 2: run the sync action with REBASE and PAT
+      # Step 2: Sync with upstream using rebase strategy
       - name: Sync upstream changes
         id: sync
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
@@ -32,23 +30,14 @@ jobs:
           upstream_sync_repo: LunaTechLab/MoonTV
           upstream_sync_branch: main
           target_sync_branch: main
-          # 关键修改 1: 使用你刚刚创建的 PAT
           target_repo_token: ${{ secrets.PAT }}
-          # 关键修改 2: 明确指定同步方法为 rebase，这会强制推送
           sync_method: 'rebase'
 
-      # 这个检查步骤其实意义不大，因为rebase失败会直接让整个job失败，可以考虑删除
-      # - name: Sync check
-      #   if: failure()
-      #   run: |
-      #     echo "[Error] ..."
-      #     exit 1
-
-      # 这个步骤是为了清理旧的 workflow runs，可以保留
+      # Step 3: Delete old workflow runs to keep the Actions tab clean
       - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@main
+        uses: Mattraks/delete-workflow-runs@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # 这里用 GITHUB_TOKEN 就够了
+          token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           retain_days: 0
           keep_minimum_runs: 2
