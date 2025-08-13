@@ -3,7 +3,7 @@ name: Upstream Sync
 on:
   schedule:
     - cron: "0 */6 * * *" # run every 6 hours
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,13 +16,11 @@ jobs:
     if: ${{ github.event.repository.fork }}
 
     steps:
-      # Step 1: Checkout the repository using a PAT for full permissions
+      # Step 1: run a standard checkout action
       - name: Checkout target repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT }} 
 
-      # Step 2: Sync with upstream using rebase strategy
+      # Step 2: run the sync action
       - name: Sync upstream changes
         id: sync
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
@@ -30,12 +28,16 @@ jobs:
           upstream_sync_repo: LunaTechLab/MoonTV
           upstream_sync_branch: main
           target_sync_branch: main
-          target_repo_token: ${{ secrets.PAT }}
-          sync_method: 'rebase'
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 3: Delete old workflow runs to keep the Actions tab clean
+      - name: Sync check
+        if: failure()
+        run: |
+          echo "[Error] Due to a change in the workflow file of the upstream repository, GitHub has automatically suspended the scheduled automatic update. You need to manually sync your fork."
+          exit 1
+
       - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@v2
+        uses: Mattraks/delete-workflow-runs@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
