@@ -3,8 +3,9 @@ name: Upstream Sync
 on:
   schedule:
     - cron: "0 */6 * * *" # run every 6 hours
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual triggering
 
+# 权限声明可以保留，但我们实际会使用权限更强的 PAT
 permissions:
   contents: write
   actions: write
@@ -19,8 +20,11 @@ jobs:
       # Step 1: run a standard checkout action
       - name: Checkout target repo
         uses: actions/checkout@v4
+        with:
+          # 使用 PAT 来 checkout，确保后续操作有权限
+          token: ${{ secrets.PAT }} 
 
-      # Step 2: run the sync action
+      # Step 2: run the sync action with REBASE and PAT
       - name: Sync upstream changes
         id: sync
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
@@ -28,18 +32,23 @@ jobs:
           upstream_sync_repo: LunaTechLab/MoonTV
           upstream_sync_branch: main
           target_sync_branch: main
-          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          # 关键修改 1: 使用你刚刚创建的 PAT
+          target_repo_token: ${{ secrets.PAT }}
+          # 关键修改 2: 明确指定同步方法为 rebase，这会强制推送
+          sync_method: 'rebase'
 
-      - name: Sync check
-        if: failure()
-        run: |
-          echo "[Error] Due to a change in the workflow file of the upstream repository, GitHub has automatically suspended the scheduled automatic update. You need to manually sync your fork."
-          exit 1
+      # 这个检查步骤其实意义不大，因为rebase失败会直接让整个job失败，可以考虑删除
+      # - name: Sync check
+      #   if: failure()
+      #   run: |
+      #     echo "[Error] ..."
+      #     exit 1
 
+      # 这个步骤是为了清理旧的 workflow runs，可以保留
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@main
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }} # 这里用 GITHUB_TOKEN 就够了
           repository: ${{ github.repository }}
           retain_days: 0
           keep_minimum_runs: 2
